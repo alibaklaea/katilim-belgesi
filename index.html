@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Katılım Belgesi</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800;900&family=Fraunces:ital,wght@1,400;1,600&display=block" rel="stylesheet">
+<style>
+:root{--g950:#0b241c;--g800:#173f32;--gold:#d2ad62;--gold2:#e9cf94;--cream:#f5efe2;--paper:#fbf8f1}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;font-family:Archivo,Arial,sans-serif;color:var(--cream);
+ background:radial-gradient(900px 600px at 85% 0%,#2a6650 0%,transparent 70%),linear-gradient(165deg,var(--g800),var(--g950))}
+.sar{max-width:1100px;margin:0 auto;padding:34px 16px 40px}
+.ust{font-family:Fraunces,Georgia,serif;font-style:italic;color:var(--gold);font-size:20px}
+h1{margin:6px 0 4px;font-size:clamp(30px,5vw,50px);font-weight:900;line-height:1.05}
+.alt{color:#c9d8cf;font-size:17px;margin-bottom:24px}
+.kutu{display:flex;gap:12px;flex-wrap:wrap;align-items:stretch}
+input{flex:1 1 280px;min-width:0;font:600 20px Archivo,Arial,sans-serif;padding:14px 18px;border-radius:12px;border:2px solid var(--gold);background:var(--paper);color:var(--g950);outline:none}
+input:focus{box-shadow:0 0 0 4px #d2ad6255}
+button{font:800 17px Archivo,Arial,sans-serif;padding:14px 22px;border-radius:12px;border:0;cursor:pointer;white-space:nowrap}
+.b1{background:var(--gold);color:var(--g950)}.b2{background:transparent;color:var(--gold2);border:2px solid var(--gold)}
+button:disabled{opacity:.45;cursor:not-allowed}
+.uyari{min-height:22px;margin:10px 2px 0;color:var(--gold2);font-size:15px}
+.onizleme{margin-top:18px;border-radius:10px;overflow:hidden;box-shadow:0 30px 70px -25px #000c;background:#fff}
+canvas{display:block;width:100%;height:auto}
+.not{margin-top:16px;font-size:14px;color:#a9bdb2;line-height:1.6}
+footer{margin-top:28px;padding-top:16px;border-top:1px solid #d2ad6233;font-size:14px;color:#a9bdb2;line-height:1.7}
+footer b{color:var(--gold2)}
+</style>
+</head>
+<body>
+<div class="sar">
+  <div class="ust">Swiss Turnuva Eşlendirme Eğitimi · 7 Kasım 2026</div>
+  <h1>Katılım Belgesi</h1>
+  <div class="alt">Adınızı ve soyadınızı yazın, belgenizi PDF ya da JPEG olarak indirin.</div>
+  <div class="kutu">
+    <input id="ad" placeholder="Ad Soyad (ör. Ayşe Demir)" maxlength="40" autocomplete="name" autofocus>
+    <button class="b1" id="pdf" disabled>PDF indir</button>
+    <button class="b2" id="jpg" disabled>JPEG indir</button>
+  </div>
+  <div class="uyari" id="uyari">Belge hazırlanıyor…</div>
+  <div class="onizleme"><canvas id="c" width="3368" height="2381"></canvas></div>
+  <div class="not">Adınızı Türkçe karakterlerle, nüfus kaydındaki gibi yazın. Belge bu sayfada, kendi bilgisayarınızda hazırlanır; hiçbir yere gönderilmez.</div>
+  <footer><b>Esra Aslıhan CİNBİŞ</b> · Turnuva Direktörü &nbsp;|&nbsp; <b>Ali BAKLA</b> · Teknik Hakem<br>Ankara Zeka ve Bilim Akademisi · @ankara_akilvezekaoyunlari</footer>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+// Ölçüler: şablon 297x210 mm, sayfa 1122.52 px genişliğinde ölçüldü; ad kutusu üstü 326.36 px, satır yüksekliği 1.1
+const SAYFA_W = 1122.52, AD_UST = 326.36, AD_SOL = 115.59, AD_GEN = 891.33, PT = 4 / 3;
+const c = document.getElementById("c"), x = c.getContext("2d"), K = c.width / SAYFA_W;
+const inp = document.getElementById("ad"), uyari = document.getElementById("uyari");
+const bPdf = document.getElementById("pdf"), bJpg = document.getElementById("jpg");
+const sablon = new Image();
+let hazir = false;
+
+function trBaslik(s) {
+  return s.trim().replace(/\s+/g, " ").split(" ").map(w => {
+    w = w.replace(/I/g, "ı").replace(/İ/g, "i").toLocaleLowerCase("tr-TR");
+    return w.split(".").map(p => p ? p.charAt(0).toLocaleUpperCase("tr-TR") + p.slice(1) : p).join(".");
+  }).join(" ");
+}
+function gecerli(ad) { return /^[A-Za-zÇĞİÖŞÜçğıöşüÂÎÛâîû.'\- ]+$/.test(ad) && ad.split(" ").length >= 2 && ad.length >= 5; }
+
+function ciz() {
+  if (!hazir) return;
+  x.drawImage(sablon, 0, 0, c.width, c.height);
+  const ad = trBaslik(inp.value);
+  const ok = gecerli(ad);
+  bPdf.disabled = bJpg.disabled = !ok;
+  uyari.textContent = !inp.value.trim() ? "Önizleme: adınızı yazınca belgede görünür." : ok ? "Belgeniz hazır: " + ad : "Lütfen adınızı ve soyadınızı tam yazın (yalnız harf).";
+  if (!ad) return;
+  let pt = ad.length <= 22 ? 40 : Math.max(28, Math.floor(40 * 22 / ad.length));
+  let px = pt * PT;
+  const font = s => `italic 600 ${s * K}px Fraunces`;
+  x.font = font(px);
+  while (x.measureText(ad).width > AD_GEN * K && px > 20) { px -= 1; x.font = font(px); }
+  const m = x.measureText(ad);
+  const A = m.fontBoundingBoxAscent, D = m.fontBoundingBoxDescent;
+  const lh = px * 1.1 * K;
+  const taban = AD_UST * K + (lh - (A + D)) / 2 + A;
+  x.fillStyle = "#0b241c"; x.textAlign = "center"; x.textBaseline = "alphabetic";
+  x.fillText(ad, (AD_SOL + AD_GEN / 2) * K, taban);
+}
+function dosyaAdi(uz) { return "Katilim_Belgesi_" + trBaslik(inp.value).replace(/\s+/g, "_") + "." + uz; }
+function indir(blob, ad) { const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = ad; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500); }
+
+bJpg.onclick = () => { ciz(); c.toBlob(b => indir(b, dosyaAdi("jpg")), "image/jpeg", 0.92); };
+bPdf.onclick = () => {
+  ciz();
+  const doc = new jspdf.jsPDF({orientation: "landscape", unit: "mm", format: "a4"});
+  doc.addImage(c.toDataURL("image/jpeg", 0.92), "JPEG", 0, 0, 297, 210);
+  doc.setProperties({title: "Katılım Belgesi - " + trBaslik(inp.value)});
+  indir(doc.output("blob"), dosyaAdi("pdf"));
+};
+inp.addEventListener("input", ciz);
+inp.addEventListener("keydown", e => { if (e.key === "Enter" && !bPdf.disabled) bPdf.click(); });
+
+Promise.all([
+  new Promise((ok, h) => { sablon.onload = ok; sablon.onerror = h; sablon.src = "sablon.jpg"; }),
+  document.fonts.load("italic 600 50px Fraunces")
+]).then(() => { hazir = true; ciz(); }).catch(() => { uyari.textContent = "Belge şablonu yüklenemedi, sayfayı yenileyin."; });
+</script>
+</body>
+</html>
